@@ -156,5 +156,76 @@ flet.assetBase="/";
   <div id="view-1" style="display: flex; justify-content: center;"></div>
   <h1>View 2</h1>
   <div id="view-2"></div> -->
+
+<!-- [Album-dnd] Zona de "arrastrar y soltar" para importar el ZIP,
+     pensada sobre todo para iPad (donde el selector de archivos normal
+     de Flet no funciona — ver LEEME.md). Inyectado por
+     habilitar_arrastrar_zip.py tras cada `flet publish`; no toca nada
+     de la interfaz normal de la app salvo por este aviso, que solo
+     aparece mientras arrastras un archivo sobre la página. -->
+<div id="album-drop-overlay" style="
+  display:none; position:fixed; inset:0; z-index:999999;
+  background:rgba(20,35,85,0.90); color:#fff;
+  align-items:center; justify-content:center; text-align:center;
+  font: 500 5vw/1.4 system-ui, -apple-system, sans-serif; padding:24px;
+  pointer-events:none;">
+  Suelta aquí el archivo ZIP del álbum<br>para importarlo
+</div>
+<script>
+(function () {
+  var overlay = document.getElementById('album-drop-overlay');
+  var dragDepth = 0;
+
+  function showOverlay() { overlay.style.display = 'flex'; }
+  function hideOverlay() { overlay.style.display = 'none'; dragDepth = 0; }
+
+  function tieneArchivos(e) {
+    return !!(e.dataTransfer && e.dataTransfer.types &&
+      Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') !== -1);
+  }
+
+  window.addEventListener('dragenter', function (e) {
+    if (!tieneArchivos(e)) return;
+    dragDepth++;
+    showOverlay();
+  }, true);
+
+  window.addEventListener('dragover', function (e) {
+    if (tieneArchivos(e)) e.preventDefault();
+  }, true);
+
+  window.addEventListener('dragleave', function () {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) hideOverlay();
+  }, true);
+
+  window.addEventListener('drop', async function (e) {
+    if (!tieneArchivos(e)) return;
+    e.preventDefault();
+    hideOverlay();
+    var files = e.dataTransfer.files;
+    if (!files || !files.length) return;
+    var file = files[0];
+    if (!/\.zip$/i.test(file.name)) {
+      console.warn('[Album-dnd] El archivo soltado no es un .zip:', file.name);
+      return;
+    }
+    if (!window.__fletPyWorker) {
+      console.error('[Album-dnd] La app todavia no esta lista (worker de Python no disponible)');
+      return;
+    }
+    try {
+      var buf = await file.arrayBuffer();
+      var bytes = new Uint8Array(buf);
+      window.__fletPyWorker.postMessage(
+        { __albumZipDrop: true, bytes: bytes, name: file.name },
+        [bytes.buffer]
+      );
+    } catch (err) {
+      console.error('[Album-dnd] Error leyendo el archivo soltado:', err);
+    }
+  }, true);
+})();
+</script>
 </body>
 </html>

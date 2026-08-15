@@ -259,6 +259,20 @@ self.onmessage = async (event) => {
         self.micropipIncludePre = event.data.micropipIncludePre;
         self.pythonModuleName = event.data.pythonModuleName;
         await self.initPyodide();
+    } else if (event.data && event.data.__albumZipDrop) {
+        // [Album-dnd] Bytes de un ZIP soltado directamente sobre la
+        // página (atajo de importación para iPad — ver
+        // habilitar_arrastrar_zip.py y el LEEME.md).
+        try {
+            const fn = self.pyodide.globals.get("recibir_zip_arrastrado");
+            if (fn) {
+                await fn(event.data.bytes, event.data.name || "");
+            } else {
+                console.error("[Album-dnd] recibir_zip_arrastrado no existe todavía en Python (¿la app sigue arrancando?)");
+            }
+        } catch (err) {
+            console.error("[Album-dnd] Error procesando el ZIP arrastrado:", err);
+        }
     } else {
         // message
         flet_js.send(event.data);
