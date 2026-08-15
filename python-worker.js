@@ -263,14 +263,37 @@ self.onmessage = async (event) => {
         // [Album-dnd] Uno o varios ZIP soltados directamente sobre la
         // página (atajo de importación para iPad — ver
         // habilitar_arrastrar_zip.py y el LEEME.md). `event.data.files`
-        // es un array con un {bytes, name} por cada .zip soltado a
-        // la vez; Python los importa todos en un mismo lote.
+        // son referencias a archivo SIN LEER (File/Blob, clonados tal
+        // cual por postMessage, ya ordenados por index.html) — se leen
+        // y procesan AQUÍ, de uno en uno, esperando (`await`) a que
+        // Python termine cada uno (incluida la escritura a IndexedDB)
+        // antes de leer el siguiente. Así nunca hay más de un ZIP
+        // entero en memoria a la vez — con varios soltados de golpe,
+        // leerlos TODOS por adelantado agotó la memoria en un iPad
+        // real ('Out of Memory'; ver el docstring del script).
         try {
-            const fn = self.pyodide.globals.get("recibir_zips_arrastrados");
-            if (fn) {
-                await fn(event.data.files);
+            const fn = self.pyodide.globals.get("recibir_zip_arrastrado");
+            if (!fn) {
+                console.error("[Album-dnd] recibir_zip_arrastrado no existe todavía en Python (¿la app sigue arrancando?)");
             } else {
-                console.error("[Album-dnd] recibir_zips_arrastrados no existe todavía en Python (¿la app sigue arrancando?)");
+                const archivos = event.data.files || [];
+                const total = archivos.length;
+                for (let i = 0; i < total; i++) {
+                    const archivo = archivos[i];
+                    let bytes;
+                    try {
+                        const buf = await archivo.arrayBuffer();
+                        bytes = new Uint8Array(buf);
+                    } catch (errLectura) {
+                        console.error("[Album-dnd] Error leyendo " + archivo.name + ":", errLectura);
+                        break;
+                    }
+                    const ok = await fn(bytes, archivo.name || "", i + 1, total);
+                    // Sin más referencias a `bytes`/`buf` antes de leer el
+                    // siguiente archivo, para que quede libre para el GC.
+                    bytes = null;
+                    if (ok !== true) break;
+                }
             }
         } catch (err) {
             console.error("[Album-dnd] Error procesando los ZIP arrastrados:", err);

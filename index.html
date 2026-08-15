@@ -200,6 +200,18 @@ flet.assetBase="/";
     if (dragDepth === 0) hideOverlay();
   }, true);
 
+  // Extrae el número de parte de un nombre "..._parteN_de_M..." (el que
+  // pone exportar_zip_familia.py) para poder ordenar los archivos ANTES
+  // de leer ni un solo byte -- así, si se sueltan varias partes juntas,
+  // la que trae Fotos.db (siempre "parte1") es la primera que procesa
+  // Python. Es solo una ayuda por nombre, no abre el .zip para
+  // comprobarlo; los nombres que no siguen esa convención se dejan al
+  // final, en el orden en que los dio el navegador.
+  function numeroDeParte(nombre) {
+    var m = /_parte(\d+)_de_\d+/i.exec(nombre);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
   window.addEventListener('drop', async function (e) {
     if (!tieneArchivos(e)) return;
     e.preventDefault();
@@ -224,21 +236,26 @@ flet.assetBase="/";
       return;
     }
 
+    zips.sort(function (a, b) {
+      var na = numeroDeParte(a.name), nb = numeroDeParte(b.name);
+      if (na === null && nb === null) return 0;
+      if (na === null) return 1;
+      if (nb === null) return -1;
+      return na - nb;
+    });
+
+    // IMPORTANTE: aquí se mandan los archivos SIN LEER (los objetos File
+    // se clonan tal cual por postMessage, es barato, no hace falta leer
+    // su contenido para eso). Es el worker (python-worker.js) quien los
+    // lee y procesa, DE UNO EN UNO, esperando a que Python termine cada
+    // uno antes de leer el siguiente -- si se leyeran aquí TODOS a la
+    // vez antes de mandarlos, con varias partes de golpe se podría
+    // agotar la memoria de la pestaña (visto en un iPad real: "Out of
+    // Memory"). Ver el porqué con más detalle en el docstring del script.
     try {
-      var payload = [];
-      var transferibles = [];
-      for (var i = 0; i < zips.length; i++) {
-        var buf = await zips[i].arrayBuffer();
-        var bytes = new Uint8Array(buf);
-        payload.push({ bytes: bytes, name: zips[i].name });
-        transferibles.push(bytes.buffer);
-      }
-      window.__fletPyWorker.postMessage(
-        { __albumZipDrop: true, files: payload },
-        transferibles
-      );
+      window.__fletPyWorker.postMessage({ __albumZipDrop: true, files: zips });
     } catch (err) {
-      console.error('[Album-dnd] Error leyendo los archivos soltados:', err);
+      console.error('[Album-dnd] Error enviando los archivos soltados al worker:', err);
     }
   }, true);
 })();
