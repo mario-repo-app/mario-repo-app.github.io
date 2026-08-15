@@ -157,19 +157,20 @@ flet.assetBase="/";
   <h1>View 2</h1>
   <div id="view-2"></div> -->
 
-<!-- [Album-dnd] Zona de "arrastrar y soltar" para importar el ZIP,
+<!-- [Album-dnd] Zona de "arrastrar y soltar" para importar el/los ZIP,
      pensada sobre todo para iPad (donde el selector de archivos normal
-     de Flet no funciona — ver LEEME.md). Inyectado por
-     habilitar_arrastrar_zip.py tras cada `flet publish`; no toca nada
-     de la interfaz normal de la app salvo por este aviso, que solo
-     aparece mientras arrastras un archivo sobre la página. -->
+     de Flet no funciona — ver LEEME.md). Acepta soltar varios .zip a la
+     vez (p. ej. las partes de `exportar_zip_familia.py --max-zip-mb`).
+     Inyectado por habilitar_arrastrar_zip.py tras cada `flet publish`;
+     no toca nada de la interfaz normal de la app salvo por este aviso,
+     que solo aparece mientras arrastras archivos sobre la página. -->
 <div id="album-drop-overlay" style="
   display:none; position:fixed; inset:0; z-index:999999;
   background:rgba(20,35,85,0.90); color:#fff;
   align-items:center; justify-content:center; text-align:center;
   font: 500 5vw/1.4 system-ui, -apple-system, sans-serif; padding:24px;
   pointer-events:none;">
-  Suelta aquí el archivo ZIP del álbum<br>para importarlo
+  Suelta aquí el/los archivo(s) ZIP del álbum<br>para importarlo(s)
 </div>
 <script>
 (function () {
@@ -203,26 +204,41 @@ flet.assetBase="/";
     if (!tieneArchivos(e)) return;
     e.preventDefault();
     hideOverlay();
-    var files = e.dataTransfer.files;
-    if (!files || !files.length) return;
-    var file = files[0];
-    if (!/\.zip$/i.test(file.name)) {
-      console.warn('[Album-dnd] El archivo soltado no es un .zip:', file.name);
+
+    var fileList = e.dataTransfer.files;
+    if (!fileList || !fileList.length) return;
+
+    // Se admite soltar varios archivos a la vez (p. ej. las partes que
+    // genera exportar_zip_familia.py --max-zip-mb) — se descarta
+    // silenciosamente cualquiera que no termine en .zip, igual que antes
+    // se hacía con el único archivo soltado.
+    var zips = Array.prototype.filter.call(fileList, function (f) {
+      return /\.zip$/i.test(f.name);
+    });
+    if (!zips.length) {
+      console.warn('[Album-dnd] Ningún archivo soltado es un .zip (de ' + fileList.length + ' soltado(s))');
       return;
     }
     if (!window.__fletPyWorker) {
       console.error('[Album-dnd] La app todavia no esta lista (worker de Python no disponible)');
       return;
     }
+
     try {
-      var buf = await file.arrayBuffer();
-      var bytes = new Uint8Array(buf);
+      var payload = [];
+      var transferibles = [];
+      for (var i = 0; i < zips.length; i++) {
+        var buf = await zips[i].arrayBuffer();
+        var bytes = new Uint8Array(buf);
+        payload.push({ bytes: bytes, name: zips[i].name });
+        transferibles.push(bytes.buffer);
+      }
       window.__fletPyWorker.postMessage(
-        { __albumZipDrop: true, bytes: bytes, name: file.name },
-        [bytes.buffer]
+        { __albumZipDrop: true, files: payload },
+        transferibles
       );
     } catch (err) {
-      console.error('[Album-dnd] Error leyendo el archivo soltado:', err);
+      console.error('[Album-dnd] Error leyendo los archivos soltados:', err);
     }
   }, true);
 })();

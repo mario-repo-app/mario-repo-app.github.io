@@ -260,18 +260,20 @@ self.onmessage = async (event) => {
         self.pythonModuleName = event.data.pythonModuleName;
         await self.initPyodide();
     } else if (event.data && event.data.__albumZipDrop) {
-        // [Album-dnd] Bytes de un ZIP soltado directamente sobre la
+        // [Album-dnd] Uno o varios ZIP soltados directamente sobre la
         // página (atajo de importación para iPad — ver
-        // habilitar_arrastrar_zip.py y el LEEME.md).
+        // habilitar_arrastrar_zip.py y el LEEME.md). `event.data.files`
+        // es un array con un {bytes, name} por cada .zip soltado a
+        // la vez; Python los importa todos en un mismo lote.
         try {
-            const fn = self.pyodide.globals.get("recibir_zip_arrastrado");
+            const fn = self.pyodide.globals.get("recibir_zips_arrastrados");
             if (fn) {
-                await fn(event.data.bytes, event.data.name || "");
+                await fn(event.data.files);
             } else {
-                console.error("[Album-dnd] recibir_zip_arrastrado no existe todavía en Python (¿la app sigue arrancando?)");
+                console.error("[Album-dnd] recibir_zips_arrastrados no existe todavía en Python (¿la app sigue arrancando?)");
             }
         } catch (err) {
-            console.error("[Album-dnd] Error procesando el ZIP arrastrado:", err);
+            console.error("[Album-dnd] Error procesando los ZIP arrastrados:", err);
         }
     } else {
         // message

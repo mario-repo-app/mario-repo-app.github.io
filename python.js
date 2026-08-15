@@ -26,7 +26,7 @@ globalThis.jsConnect = async function (appId, args, dartOnMessage) {
         { type: "module" });
     // [Album-dnd] Expone el worker de Python para que el detector de
     // "arrastrar y soltar" (inyectado en index.html) pueda mandarle
-    // directamente los bytes de un ZIP soltado sobre la página —
+    // directamente los bytes de los ZIP soltados sobre la página —
     // atajo para iPad, donde el selector de archivos no abre el
     // diálogo nativo de iOS (ver habilitar_arrastrar_zip.py).
     window.__fletPyWorker = app.worker;
