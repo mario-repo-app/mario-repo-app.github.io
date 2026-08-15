@@ -10,23 +10,23 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icons/icon-192.png?v=77e689f55a",
+      "src": "icons/icon-192.png?v=b1a810558b",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png?v=fb436e6ea4",
+      "src": "icons/icon-512.png?v=29510084f1",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-maskable-192.png?v=a98f4bbd00",
+      "src": "icons/icon-maskable-192.png?v=1dadee95cf",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon-maskable-512.png?v=3cbe359c20",
+      "src": "icons/icon-maskable-512.png?v=3165a5c86a",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
