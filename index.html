@@ -183,25 +183,30 @@ flet.assetBase="/";
 
 <input type="file" id="album-folder-zip-input" webkitdirectory directory multiple
   style="position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;">
-<!-- Barra oculta por defecto (display:none): solo se muestra en Ajustes,
-     ver el listener de 'album-page-change' más abajo. No se puede alinear
-     pixel a pixel con "Importar ZIP" (Flet dibuja en un <canvas>, no hay
-     DOM por control) -- por eso se coloca justo debajo de la barra
-     superior de la app y el propio texto aclara que es una alternativa a
-     "Importar ZIP", que sigue estando más abajo dentro de la página. -->
+<!-- Barra oculta por defecto (display:none, JS la pone a "flex" para
+     mostrarla): solo se muestra en Ajustes, ver el listener de
+     'album-page-change' más abajo. Ocupa el lugar de "Importar ZIP" (ya
+     eliminado de main.py): no se puede "meter" literalmente dentro de
+     settings_page ni alinear pixel a pixel con un punto exacto de una
+     columna con scroll (Flet dibuja en un único <canvas>, no hay DOM por
+     control) -- así que se coloca fija justo debajo de la barra superior
+     de la app, que es aproximadamente donde estaba el antiguo botón (el
+     primer control de esa pestaña). Estilo pensado para que se confunda
+     con un `ElevatedButton` normal de Flet: mismo azul que la cabecera
+     (`PRIMARY = ft.Colors.INDIGO_800` = #283593), texto blanco, icono,
+     forma de píldora y sombra de elevación. -->
 <div id="album-folder-zip-bar" style="
   display:none; position:fixed; left:0; right:0; top:0; z-index:999997;
-  padding:calc(64px + env(safe-area-inset-top, 0px)) 12px 8px;
+  justify-content:center;
+  padding:calc(64px + env(safe-area-inset-top, 0px)) 16px 8px;
   pointer-events:none;">
   <button type="button" id="album-folder-zip-button" style="
-    pointer-events:auto; display:block; width:100%; max-width:420px; margin:0 auto;
-    background:#0440a2; color:#fff; border:none; border-radius:10px;
-    padding:10px 16px; font:500 14px/1.3 system-ui, -apple-system, sans-serif;
-    box-shadow:0 2px 8px rgba(0,0,0,0.35); cursor:pointer; text-align:center;">
-    📁 Elegir carpeta con las partes ZIP
-    <div style="font-weight:400; font-size:12px; opacity:0.85; margin-top:2px;">
-      (alternativa a "Importar ZIP", más abajo)
-    </div>
+    pointer-events:auto; display:inline-flex; align-items:center; gap:8px;
+    background:#283593; color:#fff; border:none; border-radius:24px;
+    padding:12px 24px; font:600 15px/1.2 system-ui, -apple-system, sans-serif;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;">
+    <span style="font-size:18px; line-height:1;">📁</span>
+    Elegir carpeta con las partes ZIP
   </button>
 </div>
 
@@ -216,7 +221,7 @@ flet.assetBase="/";
   // Solo visible en la pestaña Ajustes -- ver _notificar_pagina_activa()
   // en main.py y el listener de mensajes del worker en python.js.
   window.addEventListener('album-page-change', function (e) {
-    folderBar.style.display = (e.detail === 'ajustes') ? 'block' : 'none';
+    folderBar.style.display = (e.detail === 'ajustes') ? 'flex' : 'none';
   });
 
   function showOverlay() { overlay.style.display = 'flex'; }
