@@ -6,7 +6,7 @@
   "background_color": "#FFFFFF",
   "theme_color": "#0175C2",
   "description": "\u00c1lbum de fotos familiar",
-  "orientation": "natural",
+  "orientation": "any",
   "prefer_related_applications": false,
   "icons": [
     {
