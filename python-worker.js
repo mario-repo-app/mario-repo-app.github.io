@@ -260,8 +260,9 @@ self.onmessage = async (event) => {
         self.pythonModuleName = event.data.pythonModuleName;
         await self.initPyodide();
     } else if (event.data && event.data.__albumZipDrop) {
-        // [Album-dnd] Uno o varios ZIP soltados directamente sobre la
-        // página (atajo de importación para iPad — ver
+        // [Album-dnd] Uno o varios ZIP soltados o elegidos con el
+        // botón nuevo directamente sobre la página (atajo de
+        // importación para iPad y Android — ver
         // habilitar_arrastrar_zip.py y el LEEME.md). `event.data.files`
         // son referencias a archivo SIN LEER (File/Blob, clonados tal
         // cual por postMessage, ya ordenados por index.html) — se leen

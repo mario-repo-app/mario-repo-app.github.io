@@ -157,13 +157,17 @@ flet.assetBase="/";
   <h1>View 2</h1>
   <div id="view-2"></div> -->
 
-<!-- [Album-dnd] Zona de "arrastrar y soltar" para importar el/los ZIP,
-     pensada sobre todo para iPad (donde el selector de archivos normal
-     de Flet no funciona — ver LEEME.md). Acepta soltar varios .zip a la
-     vez (p. ej. las partes de `exportar_zip_familia.py --max-zip-mb`).
-     Inyectado por habilitar_arrastrar_zip.py tras cada `flet publish`;
-     no toca nada de la interfaz normal de la app salvo por este aviso,
-     que solo aparece mientras arrastras archivos sobre la página. -->
+<!-- [Album-dnd] Zona de "arrastrar y soltar" + botón "elegir varias
+     partes a la vez", para importar el/los ZIP sin pasar por el
+     selector normal de Flet (que no abre el diálogo nativo en iPad —
+     ver LEEME.md — y que, aunque abre bien en Android/Windows, no deja
+     elegir varias partes de golpe sin agotar la memoria del navegador).
+     Ambas vías aceptan uno o varios .zip a la vez (p. ej. las partes de
+     `exportar_zip_familia.py --max-zip-mb`) y los procesan uno detrás de
+     otro, nunca todos en memoria a la vez. Inyectado por
+     habilitar_arrastrar_zip.py tras cada `flet publish`; no toca nada de
+     la interfaz normal de la app salvo por este botón y el aviso, que
+     solo aparece mientras arrastras archivos sobre la página. -->
 <div id="album-drop-overlay" style="
   display:none; position:fixed; inset:0; z-index:999999;
   background:rgba(20,35,85,0.90); color:#fff;
@@ -172,9 +176,22 @@ flet.assetBase="/";
   pointer-events:none;">
   Suelta aquí el/los archivo(s) ZIP del álbum<br>para importarlo(s)
 </div>
+
+<input type="file" id="album-multi-zip-input" accept=".zip,application/zip" multiple
+  style="position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;">
+<button type="button" id="album-multi-zip-button" style="
+  position:fixed; right:16px; bottom:16px; z-index:999998;
+  background:#0440a2; color:#fff; border:none; border-radius:999px;
+  padding:12px 18px; font:500 14px/1.3 system-ui, -apple-system, sans-serif;
+  box-shadow:0 2px 8px rgba(0,0,0,0.35); cursor:pointer;">
+  📥 Elegir varias partes ZIP a la vez
+</button>
+
 <script>
 (function () {
   var overlay = document.getElementById('album-drop-overlay');
+  var multiInput = document.getElementById('album-multi-zip-input');
+  var multiButton = document.getElementById('album-multi-zip-button');
   var dragDepth = 0;
 
   function showOverlay() { overlay.style.display = 'flex'; }
@@ -202,9 +219,9 @@ flet.assetBase="/";
 
   // Extrae el número de parte de un nombre "..._parteN_de_M..." (el que
   // pone exportar_zip_familia.py) para poder ordenar los archivos ANTES
-  // de leer ni un solo byte -- así, si se sueltan varias partes juntas,
-  // la que trae Fotos.db (siempre "parte1") es la primera que procesa
-  // Python. Es solo una ayuda por nombre, no abre el .zip para
+  // de leer ni un solo byte -- así, si se sueltan/eligen varias partes
+  // juntas, la que trae Fotos.db (siempre "parte1") es la primera que
+  // procesa Python. Es solo una ayuda por nombre, no abre el .zip para
   // comprobarlo; los nombres que no siguen esa convención se dejan al
   // final, en el orden en que los dio el navegador.
   function numeroDeParte(nombre) {
@@ -212,23 +229,20 @@ flet.assetBase="/";
     return m ? parseInt(m[1], 10) : null;
   }
 
-  window.addEventListener('drop', async function (e) {
-    if (!tieneArchivos(e)) return;
-    e.preventDefault();
-    hideOverlay();
-
-    var fileList = e.dataTransfer.files;
-    if (!fileList || !fileList.length) return;
-
-    // Se admite soltar varios archivos a la vez (p. ej. las partes que
-    // genera exportar_zip_familia.py --max-zip-mb) — se descarta
-    // silenciosamente cualquiera que no termine en .zip, igual que antes
-    // se hacía con el único archivo soltado.
-    var zips = Array.prototype.filter.call(fileList, function (f) {
+  // Punto único compartido por "soltar" (drop) y por el botón "elegir
+  // varias partes": filtra a solo .zip, ordena por número de parte, y
+  // manda la lista AL WORKER SIN LEER NINGÚN BYTE aquí -- es
+  // python-worker.js quien los lee y procesa, uno a uno, esperando a
+  // que Python termine cada uno antes de leer el siguiente (ver el
+  // docstring del script para el porqué: leerlos todos de golpe aquí
+  // agotó la memoria de la pestaña en un iPad real).
+  function procesarZips(archivosRaw, origen) {
+    var zips = Array.prototype.filter.call(archivosRaw, function (f) {
       return /\.zip$/i.test(f.name);
     });
     if (!zips.length) {
-      console.warn('[Album-dnd] Ningún archivo soltado es un .zip (de ' + fileList.length + ' soltado(s))');
+      console.warn('[Album-dnd] Ningún archivo de ' + origen + ' es un .zip (de ' +
+        archivosRaw.length + ' recibido(s))');
       return;
     }
     if (!window.__fletPyWorker) {
@@ -255,9 +269,37 @@ flet.assetBase="/";
     try {
       window.__fletPyWorker.postMessage({ __albumZipDrop: true, files: zips });
     } catch (err) {
-      console.error('[Album-dnd] Error enviando los archivos soltados al worker:', err);
+      console.error('[Album-dnd] Error enviando los archivos de ' + origen + ' al worker:', err);
     }
+  }
+
+  window.addEventListener('drop', function (e) {
+    if (!tieneArchivos(e)) return;
+    e.preventDefault();
+    hideOverlay();
+
+    var fileList = e.dataTransfer.files;
+    if (!fileList || !fileList.length) return;
+    procesarZips(fileList, 'soltar');
   }, true);
+
+  // Botón "Elegir varias partes ZIP a la vez": abre el selector NATIVO
+  // del navegador (<input type="file multiple">, HTML puro, no el
+  // control FilePicker de Flet) -- así no le afecta el fallo de Flet en
+  // Safari/iPadOS (la apertura del diálogo es una reacción directa al
+  // toque, sin pasar por ningún Web Worker), y en Android/Huawei deja
+  // marcar TODAS las partes de golpe con el gesto normal de selección
+  // múltiple del propio selector de archivos del sistema.
+  multiButton.addEventListener('click', function () {
+    multiInput.value = '';
+    multiInput.click();
+  });
+
+  multiInput.addEventListener('change', function () {
+    if (!multiInput.files || !multiInput.files.length) return;
+    procesarZips(multiInput.files, 'el selector');
+    multiInput.value = '';
+  });
 })();
 </script>
 </body>

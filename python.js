@@ -25,10 +25,11 @@ globalThis.jsConnect = async function (appId, args, dartOnMessage) {
             flet.entrypointBaseUrl.slice(0, -1) : flet.entrypointBaseUrl) + "/python-worker.js",
         { type: "module" });
     // [Album-dnd] Expone el worker de Python para que el detector de
-    // "arrastrar y soltar" (inyectado en index.html) pueda mandarle
-    // directamente los bytes de los ZIP soltados sobre la página —
-    // atajo para iPad, donde el selector de archivos no abre el
-    // diálogo nativo de iOS (ver habilitar_arrastrar_zip.py).
+    // "arrastrar y soltar" y el botón "elegir varias partes"
+    // (inyectados en index.html) puedan mandarle directamente los
+    // bytes de los ZIP soltados/elegidos sobre la página — atajo
+    // para iPad, donde el selector de archivos no abre el diálogo
+    // nativo de iOS (ver habilitar_arrastrar_zip.py).
     window.__fletPyWorker = app.worker;
 
     var error;
