@@ -25,12 +25,27 @@ globalThis.jsConnect = async function (appId, args, dartOnMessage) {
             flet.entrypointBaseUrl.slice(0, -1) : flet.entrypointBaseUrl) + "/python-worker.js",
         { type: "module" });
     // [Album-dnd] Expone el worker de Python para que el detector de
-    // "arrastrar y soltar" y el botón "elegir varias partes"
+    // "arrastrar y soltar" y el botón "elegir carpeta"
     // (inyectados en index.html) puedan mandarle directamente los
     // bytes de los ZIP soltados/elegidos sobre la página — atajo
     // para iPad, donde el selector de archivos no abre el diálogo
     // nativo de iOS (ver habilitar_arrastrar_zip.py).
     window.__fletPyWorker = app.worker;
+    // [Album-dnd] Dirección contraria: mensajes del worker (Python)
+    // hacia el hilo principal. Se usa para que main.py avise, con
+    // _notificar_pagina_activa(), qué pestaña está activa ahora
+    // ("galeria" o "ajustes") — el botón "elegir carpeta" solo debe
+    // verse en Ajustes, y como vive fuera del árbol de controles de
+    // Flet (todo se dibuja en un único <canvas>, sin DOM por
+    // control) necesita que se le avise por fuera. Se usa
+    // addEventListener, no una reasignación de app.worker.onmessage,
+    // para no interferir con la comunicación normal de Flet.
+    app.worker.addEventListener("message", function (event) {
+        if (event.data && event.data.__albumPage) {
+            window.dispatchEvent(new CustomEvent("album-page-change",
+                { detail: event.data.__albumPage }));
+        }
+    });
 
     var error;
     app.worker.onmessage = (event) => {
