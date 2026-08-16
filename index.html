@@ -157,16 +157,22 @@ flet.assetBase="/";
   <h1>View 2</h1>
   <div id="view-2"></div> -->
 
-<!-- [Album-dnd] Zona de "arrastrar y soltar" + botón "elegir varias
-     partes a la vez", para importar el/los ZIP sin pasar por el
-     selector normal de Flet (que no abre el diálogo nativo en iPad —
-     ver LEEME.md — y que, aunque abre bien en Android/Windows, no deja
-     elegir varias partes de golpe sin agotar la memoria del navegador).
-     Ambas vías aceptan uno o varios .zip a la vez (p. ej. las partes de
+<!-- [Album-dnd] Zona de "arrastrar y soltar" + botón "elegir carpeta"
+     (webkitdirectory) + botón "elegir varias partes a la vez", para
+     importar el/los ZIP sin pasar por el selector normal de Flet (que no
+     abre el diálogo nativo en iPad — ver LEEME.md — y que, aunque abre
+     bien en Android/Windows, no deja elegir varias partes de golpe sin
+     agotar la memoria del navegador). Las tres vías aceptan uno o varios
+     .zip a la vez (p. ej. las partes de
      `exportar_zip_familia.py --max-zip-mb`) y los procesan uno detrás de
-     otro, nunca todos en memoria a la vez. Inyectado por
+     otro, nunca todos en memoria a la vez. El botón de carpeta va
+     primero (arriba) por ser la vía más cómoda cuando el dispositivo la
+     soporta (confirmado en un Huawei P30 Pro/EMUI 12 real, pese a la
+     fama de que webkitdirectory no funciona en móvil — ver docstring del
+     script); el de selección múltiple queda como red de seguridad para
+     cuando el selector de carpeta no esté disponible. Inyectado por
      habilitar_arrastrar_zip.py tras cada `flet publish`; no toca nada de
-     la interfaz normal de la app salvo por este botón y el aviso, que
+     la interfaz normal de la app salvo por estos botones y el aviso, que
      solo aparece mientras arrastras archivos sobre la página. -->
 <div id="album-drop-overlay" style="
   display:none; position:fixed; inset:0; z-index:999999;
@@ -177,19 +183,31 @@ flet.assetBase="/";
   Suelta aquí el/los archivo(s) ZIP del álbum<br>para importarlo(s)
 </div>
 
+<input type="file" id="album-folder-zip-input" webkitdirectory directory multiple
+  style="position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;">
+<button type="button" id="album-folder-zip-button" style="
+  position:fixed; right:16px; bottom:64px; z-index:999998;
+  background:#0440a2; color:#fff; border:none; border-radius:999px;
+  padding:12px 18px; font:500 14px/1.3 system-ui, -apple-system, sans-serif;
+  box-shadow:0 2px 8px rgba(0,0,0,0.35); cursor:pointer;">
+  📁 Elegir carpeta con las partes ZIP
+</button>
+
 <input type="file" id="album-multi-zip-input" accept=".zip,application/zip" multiple
   style="position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;">
 <button type="button" id="album-multi-zip-button" style="
   position:fixed; right:16px; bottom:16px; z-index:999998;
-  background:#0440a2; color:#fff; border:none; border-radius:999px;
+  background:#555; color:#fff; border:none; border-radius:999px;
   padding:12px 18px; font:500 14px/1.3 system-ui, -apple-system, sans-serif;
   box-shadow:0 2px 8px rgba(0,0,0,0.35); cursor:pointer;">
-  📥 Elegir varias partes ZIP a la vez
+  📥 O elegir varias partes ZIP a la vez
 </button>
 
 <script>
 (function () {
   var overlay = document.getElementById('album-drop-overlay');
+  var folderInput = document.getElementById('album-folder-zip-input');
+  var folderButton = document.getElementById('album-folder-zip-button');
   var multiInput = document.getElementById('album-multi-zip-input');
   var multiButton = document.getElementById('album-multi-zip-button');
   var dragDepth = 0;
@@ -283,13 +301,32 @@ flet.assetBase="/";
     procesarZips(fileList, 'soltar');
   }, true);
 
-  // Botón "Elegir varias partes ZIP a la vez": abre el selector NATIVO
-  // del navegador (<input type="file multiple">, HTML puro, no el
-  // control FilePicker de Flet) -- así no le afecta el fallo de Flet en
-  // Safari/iPadOS (la apertura del diálogo es una reacción directa al
-  // toque, sin pasar por ningún Web Worker), y en Android/Huawei deja
-  // marcar TODAS las partes de golpe con el gesto normal de selección
-  // múltiple del propio selector de archivos del sistema.
+  // Botón "Elegir carpeta con las partes ZIP": abre el selector NATIVO
+  // de carpeta (<input type="file" webkitdirectory>, HTML puro, no el
+  // control FilePicker de Flet). Tiene fama de no funcionar en móvil,
+  // pero confirmado en un Huawei P30 Pro/EMUI 12 real que SÍ funciona
+  // (pide permiso de acceso la primera vez -- normal, es Android
+  // protegiendo el almacenamiento -- y tras concederlo entrega todos los
+  // archivos de la carpeta elegida). Si el dispositivo no lo soporta, el
+  // <input> simplemente se comporta como un selector de archivos normal
+  // (no se rompe) y queda el botón de abajo como alternativa segura.
+  folderButton.addEventListener('click', function () {
+    folderInput.value = '';
+    folderInput.click();
+  });
+
+  folderInput.addEventListener('change', function () {
+    if (!folderInput.files || !folderInput.files.length) return;
+    procesarZips(folderInput.files, 'la carpeta elegida');
+    folderInput.value = '';
+  });
+
+  // Botón "O elegir varias partes ZIP a la vez": abre el selector NATIVO
+  // de archivos múltiples (<input type="file" multiple>, HTML puro, no
+  // el control FilePicker de Flet) -- así no le afecta el fallo de Flet
+  // en Safari/iPadOS (la apertura del diálogo es una reacción directa al
+  // toque, sin pasar por ningún Web Worker). Queda como alternativa para
+  // cuando el selector de carpeta de arriba no esté disponible.
   multiButton.addEventListener('click', function () {
     multiInput.value = '';
     multiInput.click();
@@ -297,7 +334,7 @@ flet.assetBase="/";
 
   multiInput.addEventListener('change', function () {
     if (!multiInput.files || !multiInput.files.length) return;
-    procesarZips(multiInput.files, 'el selector');
+    procesarZips(multiInput.files, 'el selector de archivos');
     multiInput.value = '';
   });
 })();
