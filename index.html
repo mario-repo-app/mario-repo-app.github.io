@@ -185,26 +185,48 @@ flet.assetBase="/";
   style="position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;">
 <!-- Barra oculta por defecto (display:none, JS la pone a "flex" para
      mostrarla): solo se muestra en Ajustes, ver el listener de
-     'album-page-change' más abajo. Ocupa el lugar de "Importar ZIP" (ya
-     eliminado de main.py): no se puede "meter" literalmente dentro de
-     settings_page ni alinear pixel a pixel con un punto exacto de una
-     columna con scroll (Flet dibuja en un único <canvas>, no hay DOM por
-     control) -- así que se coloca fija justo debajo de la barra superior
-     de la app, que es aproximadamente donde estaba el antiguo botón (el
-     primer control de esa pestaña). Estilo pensado para que se confunda
-     con un `ElevatedButton` normal de Flet: mismo azul que la cabecera
-     (`PRIMARY = ft.Colors.INDIGO_800` = #283593), texto blanco, icono,
-     forma de píldora y sombra de elevación. -->
+     'album-page-change' más abajo. Ocupa (aproximadamente) el lugar de
+     "Importar ZIP" (ya eliminado de main.py): no se puede "meter"
+     literalmente dentro de settings_page ni alinear pixel a pixel con un
+     punto exacto de una columna con scroll (Flet dibuja en un único
+     <canvas>, no hay DOM por control).
+
+     Anclada ABAJO, no arriba: la primera versión la anclaba justo debajo
+     de la barra superior con un hueco fijo calculado a ojo
+     (`calc(64px + safe-area-inset-top)`), pero esa altura no es fiable
+     de verdad -- el AppBar lo dibuja Flet/Flutter con su propia lógica de
+     zona segura, que varía según el dispositivo (notch, cámara en
+     agujero, etc.) y no hay forma de leerla desde este HTML aparte. En
+     algunos móviles el hueco se quedaba corto y la barra tapaba
+     "Estadísticas". Anclarla abajo evita el problema de raíz en vez de
+     intentar adivinar mejor: `env(safe-area-inset-bottom)` (el hueco de
+     la barra de gestos/home) sí es un valor estándar y fiable en
+     cualquier dispositivo, así que la barra queda bien colocada sin
+     depender de ninguna suposición sobre el alto del AppBar -- y de
+     paso, en la mayoría de pantallas, cae cerca de donde pediste
+     (justo encima del texto de copyright, debajo de "Descargar
+     manual"). `settings_page`, en main.py, reserva un hueco al final de
+     su columna (un Container vacío) para que ese texto de copyright no
+     quede tapado si Ajustes tiene contenido de sobra para hacer scroll.
+
+     Aspecto: antes era una píldora sólida del azul de la cabecera con
+     texto blanco -- pero el `ElevatedButton` real de Flet (como
+     "Descargar manual", sin ningún `style=` propio) usa el aspecto por
+     defecto de Material 3: fondo claro (un gris muy suave, no el azul
+     de marca) con el texto e icono en el color primario, más una sombra
+     sutil -- NO un botón "relleno" de color sólido. Cambiado para
+     igualarlo: fondo `#EEF0F7`, texto/icono `#283593` (el mismo
+     `PRIMARY` de la cabecera), sombra ligera. -->
 <div id="album-folder-zip-bar" style="
-  display:none; position:fixed; left:0; right:0; top:0; z-index:999997;
+  display:none; position:fixed; left:0; right:0; bottom:0; z-index:999997;
   justify-content:center;
-  padding:calc(64px + env(safe-area-inset-top, 0px)) 16px 8px;
+  padding:8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   pointer-events:none;">
   <button type="button" id="album-folder-zip-button" style="
     pointer-events:auto; display:inline-flex; align-items:center; gap:8px;
-    background:#283593; color:#fff; border:none; border-radius:24px;
+    background:#EEF0F7; color:#283593; border:none; border-radius:24px;
     padding:12px 24px; font:600 15px/1.2 system-ui, -apple-system, sans-serif;
-    box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;">
+    box-shadow:0 1px 4px rgba(0,0,0,0.25); cursor:pointer;">
     <span style="font-size:18px; line-height:1;">📁</span>
     Elegir carpeta con las partes ZIP
   </button>
