@@ -160,13 +160,15 @@ flet.assetBase="/";
 <!-- [Album-dnd] Zona de "arrastrar y soltar" + botón "elegir carpeta"
      (webkitdirectory), para importar el/los ZIP sin pasar por el
      selector normal de Flet (que no abre el diálogo nativo en iPad — ver
-     LEEME.md). Ambas vías aceptan uno o varios .zip a la vez (p. ej. las
-     partes de `exportar_zip_familia.py --max-zip-mb`) y los procesan uno
-     detrás de otro, nunca todos en memoria a la vez. El botón de carpeta
-     está OCULTO por defecto y solo se muestra en la pestaña Ajustes de
-     la app: main.py avisa qué pestaña está activa mandando un mensaje
-     por postMessage desde el Worker de Python (_notificar_pagina_activa,
-     en _select_nav), que python.js reenvía como el evento de JavaScript
+     LEEME.md). Las tres vías (soltar archivo(s) suelto(s), soltar una
+     CARPETA con los .zip dentro, o el botón de carpeta) aceptan uno o
+     varios .zip a la vez (p. ej. las partes de
+     `exportar_zip_familia.py --max-zip-mb`) y los procesan uno detrás de
+     otro, nunca todos en memoria a la vez. El botón de carpeta está
+     OCULTO por defecto y solo se muestra en la pestaña Ajustes de la
+     app: main.py avisa qué pestaña está activa mandando un mensaje por
+     postMessage desde el Worker de Python (_notificar_pagina_activa, en
+     _select_nav), que python.js reenvía como el evento de JavaScript
      'album-page-change' que este script escucha más abajo. Inyectado por
      habilitar_arrastrar_zip.py tras cada `flet publish`; no toca nada de
      la interfaz normal de la app salvo por este botón y el aviso de
@@ -178,7 +180,7 @@ flet.assetBase="/";
   align-items:center; justify-content:center; text-align:center;
   font: 500 5vw/1.4 system-ui, -apple-system, sans-serif; padding:24px;
   pointer-events:none;">
-  Suelta aquí el/los archivo(s) ZIP del álbum<br>para importarlo(s)
+  Suelta aquí el/los archivo(s) o la carpeta ZIP del álbum<br>para importarlo(s)
 </div>
 
 <input type="file" id="album-folder-zip-input" webkitdirectory directory multiple
@@ -281,13 +283,18 @@ flet.assetBase="/";
     return m ? parseInt(m[1], 10) : null;
   }
 
-  // Punto único compartido por "soltar" (drop) y por el botón "elegir
-  // varias partes": filtra a solo .zip, ordena por número de parte, y
-  // manda la lista AL WORKER SIN LEER NINGÚN BYTE aquí -- es
-  // python-worker.js quien los lee y procesa, uno a uno, esperando a
-  // que Python termine cada uno antes de leer el siguiente (ver el
-  // docstring del script para el porqué: leerlos todos de golpe aquí
-  // agotó la memoria de la pestaña en un iPad real).
+  // Punto único compartido por "soltar" (archivos o carpeta), "elegir
+  // carpeta" y "elegir varias partes": filtra a solo .zip, ordena por
+  // número de parte, y manda la lista AL WORKER SIN LEER NINGÚN BYTE
+  // aquí -- es python-worker.js quien los lee y procesa, uno a uno,
+  // esperando a que Python termine cada uno antes de leer el siguiente
+  // (ver el docstring del script para el porqué: leerlos todos de golpe
+  // aquí agotó la memoria de la pestaña en un iPad real). Acepta tanto
+  // un FileList (lo que da el navegador para archivos sueltos o para el
+  // <input webkitdirectory>) como un array normal de File (lo que arma
+  // extraerArchivosDeDrop() al recorrer una carpeta soltada) -- el
+  // filtro de abajo funciona igual con los dos gracias a
+  // Array.prototype.filter.call.
   function procesarZips(archivosRaw, origen) {
     var zips = Array.prototype.filter.call(archivosRaw, function (f) {
       return /\.zip$/i.test(f.name);
@@ -325,14 +332,111 @@ flet.assetBase="/";
     }
   }
 
+  // --- Soporte para soltar una CARPETA ENTERA (no solo archivos sueltos) ---
+  // [Album-dnd] NUEVO: `e.dataTransfer.files` (lo que usaba el listener de
+  // 'drop' hasta ahora) es una lista PLANA -- si sueltas una carpeta, el
+  // navegador no baja a mirar qué hay dentro. Para leer el contenido de
+  // una carpeta soltada hace falta la otra API de HTML5 drag & drop:
+  // `dataTransfer.items` + `item.webkitGetAsEntry()` (soportada, pese al
+  // prefijo, en Chrome/Edge/Firefox/Safari de escritorio). Cada entrada
+  // es un archivo (`FileSystemFileEntry`) o una carpeta
+  // (`FileSystemDirectoryEntry`); para una carpeta se recorre con
+  // `createReader().readEntries()` -- llamada en bucle hasta que devuelve
+  // un lote vacío, porque la especificación permite que cada llamada
+  // devuelva como mucho un lote parcial -- y de forma RECURSIVA por cada
+  // subcarpeta, igual que hace `webkitdirectory` con el botón de carpeta.
+
+  // Lee TODAS las entradas de una carpeta, no solo el primer lote.
+  function leerEntradasDirectorio(dirEntry) {
+    return new Promise(function (resolve, reject) {
+      var reader = dirEntry.createReader();
+      var todas = [];
+      function leerLote() {
+        reader.readEntries(function (entradas) {
+          if (!entradas.length) { resolve(todas); return; }
+          todas = todas.concat(entradas);
+          leerLote();
+        }, reject);
+      }
+      leerLote();
+    });
+  }
+
+  function entradaAFile(fileEntry) {
+    return new Promise(function (resolve, reject) {
+      fileEntry.file(resolve, reject);
+    });
+  }
+
+  // Recorre recursivamente una carpeta (y las subcarpetas que contenga) y
+  // devuelve la lista completa de File encontrados en todo el árbol --
+  // así, si sueltas la carpeta entera del pendrive (en vez de cada .zip
+  // suelto), esta vía encuentra las partes igual que el <input
+  // webkitdirectory> del botón, que también baja a subcarpetas.
+  async function recorrerDirectorio(dirEntry) {
+    var entradas = await leerEntradasDirectorio(dirEntry);
+    var archivos = [];
+    for (var i = 0; i < entradas.length; i++) {
+      var entrada = entradas[i];
+      if (entrada.isFile) {
+        archivos.push(await entradaAFile(entrada));
+      } else if (entrada.isDirectory) {
+        archivos = archivos.concat(await recorrerDirectorio(entrada));
+      }
+    }
+    return archivos;
+  }
+
+  // A partir del DataTransfer de un evento 'drop', arma la lista de File
+  // a procesar. IMPORTANTE: `webkitGetAsEntry()` se llama de forma
+  // SÍNCRONA aquí abajo, dentro del propio manejador del evento -- no
+  // después de ningún `await` -- porque `dataTransfer.items` deja de ser
+  // válido en cuanto el navegador termina de despachar el evento 'drop';
+  // una vez obtenidas las "entradas" (FileSystemEntry), esas sí se
+  // pueden usar de forma asíncrona sin problema (leer una carpeta puede
+  // tardar). Si el navegador no soporta esta API (algún navegador
+  // antiguo, o `dataTransfer.items` vacío), se cae al comportamiento de
+  // siempre: `dataTransfer.files` tal cual, que solo trae archivos
+  // sueltos -- soltar una carpeta en ese caso simplemente no encuentra
+  // ningún .zip dentro (procesarZips avisa por consola), igual que antes
+  // de este cambio.
+  function extraerArchivosDeDrop(dataTransfer) {
+    var items = dataTransfer.items;
+    if (!items || !items.length || typeof items[0].webkitGetAsEntry !== 'function') {
+      return Promise.resolve(dataTransfer.files);
+    }
+    var promesas = [];
+    var archivos = [];
+    for (var i = 0; i < items.length; i++) {
+      var entry = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+      if (!entry) continue;
+      if (entry.isFile) {
+        promesas.push(entradaAFile(entry).then(function (f) { archivos.push(f); }));
+      } else if (entry.isDirectory) {
+        promesas.push(recorrerDirectorio(entry).then(function (fs) {
+          archivos = archivos.concat(fs);
+        }));
+      }
+    }
+    return Promise.all(promesas).then(function () { return archivos; });
+  }
+
   window.addEventListener('drop', function (e) {
     if (!tieneArchivos(e)) return;
     e.preventDefault();
     hideOverlay();
 
-    var fileList = e.dataTransfer.files;
-    if (!fileList || !fileList.length) return;
-    procesarZips(fileList, 'soltar');
+    var dt = e.dataTransfer;
+    extraerArchivosDeDrop(dt).then(function (archivos) {
+      if (!archivos || !archivos.length) return;
+      procesarZips(archivos, 'soltar');
+    }).catch(function (err) {
+      // Red de seguridad: si algo falla leyendo carpetas/entradas (poco
+      // probable, pero por si acaso), se intenta con los archivos
+      // sueltos tal cual -- por si entre lo soltado había alguno directo.
+      console.error('[Album-dnd] Error leyendo lo soltado (¿carpeta?):', err);
+      if (dt.files && dt.files.length) procesarZips(dt.files, 'soltar');
+    });
   }, true);
 
   // Botón "Elegir carpeta con las partes ZIP": abre el selector NATIVO
