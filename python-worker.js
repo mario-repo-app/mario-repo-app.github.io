@@ -169,6 +169,20 @@ self.initPyodide = async function () {
                 )
             )
 
+        # --- Flet 0.85.3 / Pyodide 0.27.7 compatibility shim ---
+        # (insertado por fix_pyodide_cdn.py) Pyodide 0.27.7 no carga
+        # solo, con un "import" normal, algunos modulos de la libreria
+        # estandar que trae "desvendorizados" (comprobado: el mismo
+        # codigo que en el Pyodide mas nuevo de Flet 0.86.5 funciona sin
+        # mas, aqui falla con ModuleNotFoundError) -- se precargan aqui,
+        # mismo patron que ya usa el propio Flet para msgpack arriba.
+        for _stdlib_mod in ['sqlite3']:
+            try:
+                __import__(_stdlib_mod)
+            except ImportError:
+                import pyodide_js as _pyodide_js_stdlib
+                await _pyodide_js_stdlib.loadPackage(_stdlib_mod)
+
         flet_js.send_python_output = _send_python_output
 
         # Flip the worker into "user code" mode so stdout/stderr starts
