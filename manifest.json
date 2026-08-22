@@ -1,6 +1,6 @@
 {
-  "name": "FotosFamiliares_PWA",
-  "short_name": "FotosFamiliares_PWA",
+  "name": "\u00c1lbum",
+  "short_name": "\u00c1lbum",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FFFFFF",
@@ -32,5 +32,5 @@
       "purpose": "maskable"
     }
   ],
-  "version": "3.6"
+  "version": "3.7"
 }

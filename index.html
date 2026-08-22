@@ -11,13 +11,13 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="FotosFamiliares_PWA">
+  <meta name="apple-mobile-web-app-title" content="Álbum">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>FotosFamiliares_PWA</title>
+  <title>Álbum</title>
   <link rel="manifest" href="manifest.json">
 
   <script>
@@ -30,7 +30,11 @@
       assetBase: "/",
       routeUrlStrategy: "path",
       canvasKitBaseUrl: "/canvaskit/",
-      pyodideUrl: "/pyodide/pyodide.js",
+      // Default fallback only — `patch_index.py` overrides this with the
+      // resolved per-build URL (CDN or local) at deploy time. The `.mjs`
+      // suffix is required because python-worker.js is a module worker
+      // that loads the runtime via dynamic `import()`. See client/web/python.js.
+      pyodideUrl: "/pyodide/pyodide.mjs",
       webRenderer: "auto",
       fontFallbackBaseUrl: "assets/fonts/", // for Noto Emoji, use Google CDN
       appPackageUrl: "app.tar.gz"
@@ -77,8 +81,9 @@
 flet.pyodide = true;
 flet.micropipIncludePre = false;
 flet.pythonModuleName = "main";
-flet.noCdn=true;
-flet.webRenderer="auto";
+flet.pyodideUrl="https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs";
+flet.noCdn=false;
+flet.webRenderer="canvaskit";
 flet.routeUrlStrategy="path";
 flet.entrypointBaseUrl="/";
 flet.assetBase="/";
