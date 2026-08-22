@@ -30,11 +30,7 @@
       assetBase: "/",
       routeUrlStrategy: "path",
       canvasKitBaseUrl: "/canvaskit/",
-      // Default fallback only — `patch_index.py` overrides this with the
-      // resolved per-build URL (CDN or local) at deploy time. The `.mjs`
-      // suffix is required because python-worker.js is a module worker
-      // that loads the runtime via dynamic `import()`. See client/web/python.js.
-      pyodideUrl: "/pyodide/pyodide.mjs",
+      pyodideUrl: "/pyodide/pyodide.js",
       webRenderer: "auto",
       fontFallbackBaseUrl: "assets/fonts/", // for Noto Emoji, use Google CDN
       appPackageUrl: "app.tar.gz"
@@ -81,9 +77,8 @@
 flet.pyodide = true;
 flet.micropipIncludePre = false;
 flet.pythonModuleName = "main";
-flet.pyodideUrl="https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs";
 flet.noCdn=false;
-flet.webRenderer="canvaskit";
+flet.webRenderer="auto";
 flet.routeUrlStrategy="path";
 flet.entrypointBaseUrl="/";
 flet.assetBase="/";
