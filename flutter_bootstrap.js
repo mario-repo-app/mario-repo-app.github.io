@@ -54,7 +54,7 @@ if (flet.noCdn) {
 _flutter.loader.load({
     config: flutterConfig,
     serviceWorkerSettings: {
-        serviceWorkerVersion: "2832553385" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */,
+        serviceWorkerVersion: "2241166153" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */,
     },
     onEntrypointLoaded: async function (engineInitializer) {
         loading.classList.add('main_done');

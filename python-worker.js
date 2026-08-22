@@ -82,6 +82,21 @@ self.initPyodide = async function () {
         if "script" not in py_args:
             print("Downloading app archive")
             response = await pyfetch(app_package_url)
+            # Fail with a readable error on a non-2xx response.
+            # Without this check the error body (JSON/HTML from the
+            # server) lands in unpack_archive and surfaces as a
+            # cryptic "... is not a zip file" ReadError.
+            if not response.ok:
+                _err_body = ""
+                try:
+                    _err_body = (await response.text())[:200].strip()
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f"Failed to download app package: "
+                    f"HTTP {response.status} {app_package_url}"
+                    + (f" — {_err_body}" if _err_body else "")
+                )
             # Pick format from the URL's path extension. Pyodide's
             # filename-based sniff trips over query strings like
             # ?v=42. We only support zip and tar.gz (matching what
