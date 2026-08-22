@@ -28259,7 +28259,6 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 screen_brightness
-screen_brightness_macos
 
 MIT License
 
@@ -28284,6 +28283,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 --------------------------------------------------------------------------------
 screen_brightness_android
+screen_brightness_macos
 
 MIT License
 
