@@ -90,36 +90,6 @@ flet.assetBase="/";
 </script>
 
   <script src="python.js"></script>
-
-<script>
-// [Album-viewport] Ver habilitar_arrastrar_zip.py: fuerza viewport-fit=cover
-// en la etiqueta viewport (también en la que inserta Flutter al arrancar).
-(function () {
-  function asegurarCover(meta) {
-    var c = meta.getAttribute('content') || '';
-    if (/viewport-fit\s*=\s*cover/i.test(c)) return;
-    c = c.replace(/[\s,]*$/, '');
-    meta.setAttribute('content',
-      c ? c + ', viewport-fit=cover'
-        : 'width=device-width, initial-scale=1, viewport-fit=cover');
-  }
-  function revisar() {
-    var metas = document.querySelectorAll('meta[name="viewport"]');
-    if (!metas.length && document.head) {
-      var m = document.createElement('meta');
-      m.setAttribute('name', 'viewport');
-      document.head.appendChild(m);
-      metas = [m];
-    }
-    for (var i = 0; i < metas.length; i++) asegurarCover(metas[i]);
-  }
-  revisar();
-  new MutationObserver(revisar).observe(document.documentElement, {
-    childList: true, subtree: true,
-    attributes: true, attributeFilter: ['content']
-  });
-})();
-</script>
 </head>
 
 <body>
